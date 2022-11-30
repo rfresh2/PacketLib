@@ -233,6 +233,12 @@ public interface Session {
     public void send(Packet packet);
 
     /**
+     * Sends a packet without calling listeners
+     * @param packet Packet to send
+     */
+    public void sendDirect(Packet packet);
+
+    /**
      * Disconnects the session.
      *
      * @param reason Reason for disconnecting.
