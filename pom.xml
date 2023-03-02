@@ -5,7 +5,7 @@
 
     <groupId>com.github.steveice10</groupId>
     <artifactId>packetlib</artifactId>
-    <version>2.2-5c</version>
+    <version>3.0-5c</version>
     <packaging>jar</packaging>
 
     <name>PacketLib</name>
@@ -20,7 +20,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <jdk.version>1.8</jdk.version>
+        <jdk.version>17</jdk.version>
         <argLine></argLine>
     </properties>
 
@@ -72,26 +72,26 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.66.Final</version>
+            <version>4.1.89.Final</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-haproxy</artifactId>
-            <version>4.1.66.Final</version>
+            <version>4.1.89.Final</version>
             <scope>compile</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.netty.incubator</groupId>
             <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-            <version>0.0.8.Final</version>
+            <version>0.0.18.Final</version>
             <classifier>linux-x86_64</classifier>
         </dependency>
       <dependency>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-annotations</artifactId>
-        <version>4.3.0</version>
+        <version>4.7.3</version>
       </dependency>
     </dependencies>
 
