@@ -2,12 +2,11 @@ package com.github.steveice10.packetlib.packet;
 
 import com.github.steveice10.packetlib.Server;
 import com.github.steveice10.packetlib.Session;
-import com.github.steveice10.packetlib.crypt.PacketEncryption;
 import com.github.steveice10.packetlib.io.NetInput;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
@@ -15,11 +14,11 @@ import java.util.Map;
  * All implementations must have a constructor that takes in a {@link NetInput}.
  */
 public abstract class PacketProtocol {
-    private final Map<Integer, PacketDefinition<? extends Packet>> serverbound = new HashMap<>();
-    private final Map<Integer, PacketDefinition<? extends Packet>> clientbound = new HashMap<>();
+    private final Map<Integer, PacketDefinition<? extends Packet>> serverbound = new Int2ObjectOpenHashMap<>();
+    private final Map<Integer, PacketDefinition<? extends Packet>> clientbound = new Int2ObjectOpenHashMap<>();
 
-    private final Map<Class<? extends Packet>, Integer> clientboundIds = new IdentityHashMap<>();
-    private final Map<Class<? extends Packet>, Integer> serverboundIds = new IdentityHashMap<>();
+    private final Map<Class<? extends Packet>, Integer> clientboundIds = new Object2IntOpenHashMap<>();
+    private final Map<Class<? extends Packet>, Integer> serverboundIds = new Object2IntOpenHashMap<>();
 
     /**
      * Gets the prefix used when locating SRV records for this protocol.

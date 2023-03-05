@@ -5,7 +5,7 @@
 
     <groupId>com.github.steveice10</groupId>
     <artifactId>packetlib</artifactId>
-    <version>3.0-5c</version>
+    <version>3.1-5c</version>
     <packaging>jar</packaging>
 
     <name>PacketLib</name>
@@ -93,6 +93,17 @@
         <artifactId>spotbugs-annotations</artifactId>
         <version>4.7.3</version>
       </dependency>
+        <dependency>
+            <groupId>com.nukkitx.fastutil</groupId>
+            <artifactId>fastutil-int-object-maps</artifactId>
+            <version>8.5.2</version>
+        </dependency>
+    <dependency>
+        <groupId>com.nukkitx.fastutil</groupId>
+        <artifactId>fastutil-object-int-maps</artifactId>
+        <version>8.5.2</version>
+        <scope>compile</scope>
+    </dependency>
     </dependencies>
 
     <build>
