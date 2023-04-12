@@ -72,13 +72,13 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-all</artifactId>
-            <version>4.1.89.Final</version>
+            <version>4.1.91.Final</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-haproxy</artifactId>
-            <version>4.1.89.Final</version>
+            <version>4.1.91.Final</version>
             <scope>compile</scope>
             <optional>true</optional>
         </dependency>
@@ -142,24 +142,6 @@
                     <skip>true</skip>
                     <!-- Force the right file encoding during unit testing -->
                     <argLine>-Dfile.encoding=${project.build.sourceEncoding} @{argLine}</argLine>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.10.4</version>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>aggregate</goal>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <show>public</show>
-                    <failOnError>false</failOnError>
                 </configuration>
             </plugin>
             <plugin>
