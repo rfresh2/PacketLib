@@ -5,7 +5,7 @@
 
     <groupId>com.github.steveice10</groupId>
     <artifactId>packetlib</artifactId>
-    <version>3.1-5c</version>
+    <version>3.2-5c</version>
     <packaging>jar</packaging>
 
     <name>PacketLib</name>

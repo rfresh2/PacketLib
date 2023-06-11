@@ -2,15 +2,11 @@ package com.github.steveice10.packetlib.tcp;
 
 import com.github.steveice10.packetlib.Session;
 import com.github.steveice10.packetlib.crypt.PacketEncryption;
-import com.github.steveice10.packetlib.event.session.ConnectedEvent;
-import com.github.steveice10.packetlib.event.session.DisconnectedEvent;
-import com.github.steveice10.packetlib.event.session.DisconnectingEvent;
-import com.github.steveice10.packetlib.event.session.PacketSendingEvent;
-import com.github.steveice10.packetlib.event.session.SessionEvent;
-import com.github.steveice10.packetlib.event.session.SessionListener;
+import com.github.steveice10.packetlib.event.session.*;
 import com.github.steveice10.packetlib.packet.Packet;
 import com.github.steveice10.packetlib.packet.PacketProtocol;
 import io.netty.channel.*;
+import io.netty.handler.codec.EncoderException;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutException;
@@ -182,7 +178,7 @@ public abstract class TcpSession extends SimpleChannelInboundHandler<Packet> imp
         if (this.channel != null) {
             if (this.compressionThreshold >= 0) {
                 if (this.channel.pipeline().get("compression") == null) {
-                    this.channel.pipeline().addBefore("codec", "compression", new TcpPacketCompression(this, validateDecompression));
+                    this.channel.pipeline().addAfter("sizer", "compression", new TcpPacketCompression(this, validateDecompression));
                 }
             } else if (this.channel.pipeline().get("compression") != null) {
                 this.channel.pipeline().remove("compression");
@@ -374,6 +370,8 @@ public abstract class TcpSession extends SimpleChannelInboundHandler<Packet> imp
             message = "Read timed out.";
         } else if (cause instanceof WriteTimeoutException) {
             message = "Write timed out.";
+        } else if (cause instanceof EncoderException) {
+            return;
         } else {
             message = cause.toString();
         }
