@@ -6,36 +6,19 @@ import com.github.steveice10.packetlib.helper.TransportHelper;
 import com.github.steveice10.packetlib.packet.PacketProtocol;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.AddressedEnvelope;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.DatagramChannel;
-import io.netty.channel.*;
 import io.netty.channel.kqueue.KQueueDatagramChannel;
 import io.netty.channel.kqueue.KQueueEventLoopGroup;
 import io.netty.channel.kqueue.KQueueSocketChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.dns.DefaultDnsQuestion;
-import io.netty.handler.codec.dns.DefaultDnsRawRecord;
-import io.netty.handler.codec.dns.DefaultDnsRecordDecoder;
-import io.netty.handler.codec.dns.DnsRecordType;
-import io.netty.handler.codec.dns.DnsResponse;
-import io.netty.handler.codec.dns.DnsSection;
-import io.netty.handler.codec.haproxy.HAProxyCommand;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
-import io.netty.handler.codec.haproxy.HAProxyMessageEncoder;
-import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
-import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import io.netty.handler.codec.dns.*;
+import io.netty.handler.codec.haproxy.*;
 import io.netty.handler.proxy.HttpProxyHandler;
 import io.netty.handler.proxy.Socks4ProxyHandler;
 import io.netty.handler.proxy.Socks5ProxyHandler;
@@ -44,13 +27,20 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringSocketChannel;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
-import java.net.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 public class TcpClientSession extends TcpSession {
     private static final String IP_REGEX = "\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b";
     private static Class<? extends Channel> CHANNEL_CLASS;
     private static Class<? extends DatagramChannel> DATAGRAM_CHANNEL_CLASS;
     private static EventLoopGroup EVENT_LOOP_GROUP;
+    private static Logger LOGGER = LoggerFactory.getLogger("PacketLib");
 
     private final String bindAddress;
     private final int bindPort;
@@ -101,7 +91,7 @@ public class TcpClientSession extends TcpSession {
                         channel.config().setOption(ChannelOption.TCP_NODELAY, true);
                     } catch (ChannelException e) {
                         if(debug) {
-                            System.out.println("Exception while trying to set TCP_NODELAY");
+                            LOGGER.debug("Exception while trying to set TCP_NODELAY");
                             e.printStackTrace();
                         }
                     }
@@ -149,7 +139,7 @@ public class TcpClientSession extends TcpSession {
 
         String name = this.getPacketProtocol().getSRVRecordPrefix() + "._tcp." + this.getHost();
         if (debug) {
-            System.out.println("[PacketLib] Attempting SRV lookup for \"" + name + "\".");
+            LOGGER.debug("Attempting SRV lookup for \"" + name + "\".");
         }
 
         if(getFlag(BuiltinFlags.ATTEMPT_SRV_RESOLVE, true) && (!this.host.matches(IP_REGEX) && !this.host.equalsIgnoreCase("localhost"))) {
@@ -175,21 +165,20 @@ public class TcpClientSession extends TcpSession {
                         }
 
                         if(debug) {
-                            System.out.println("[PacketLib] Found SRV record containing \"" + host + ":" + port + "\".");
+                            LOGGER.debug("Found SRV record containing \"" + host + ":" + port + "\".");
                         }
 
                         this.host = host;
                         this.port = port;
                     } else if (debug) {
-                        System.out.println("[PacketLib] Received non-SRV record in response.");
+                        LOGGER.debug("Received non-SRV record in response.");
                     }
                 } else if (debug) {
-                    System.out.println("[PacketLib] No SRV record found.");
+                    LOGGER.debug("No SRV record found.");
                 }
             } catch(Exception e) {
                 if (debug) {
-                    System.out.println("[PacketLib] Failed to resolve SRV record.");
-                    e.printStackTrace();
+                    LOGGER.debug("Failed to resolve SRV record.", e);
                 }
             } finally {
                 if (envelope != null) {
@@ -201,20 +190,19 @@ public class TcpClientSession extends TcpSession {
                 }
             }
         } else if(debug) {
-            System.out.println("[PacketLib] Not resolving SRV record for " + this.host);
+            LOGGER.debug("Not resolving SRV record for " + this.host);
         }
 
         // Resolve host here
         try {
             InetAddress resolved = InetAddress.getByName(getHost());
             if (debug) {
-                System.out.printf("[PacketLib] Resolved %s -> %s%n", getHost(), resolved.getHostAddress());
+                System.out.printf("Resolved %s -> %s%n", getHost(), resolved.getHostAddress());
             }
             return new InetSocketAddress(resolved, getPort());
         } catch (UnknownHostException e) {
             if (debug) {
-                System.out.println("[PacketLib] Failed to resolve host, letting Netty do it instead.");
-                e.printStackTrace();
+                LOGGER.debug("Failed to resolve host, letting Netty do it instead.", e);
             }
             return InetSocketAddress.createUnresolved(getHost(), getPort());
         }
