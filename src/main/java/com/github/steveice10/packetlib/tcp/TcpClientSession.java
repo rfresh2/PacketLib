@@ -10,9 +10,6 @@ import io.netty.channel.*;
 import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.kqueue.KQueueDatagramChannel;
-import io.netty.channel.kqueue.KQueueEventLoopGroup;
-import io.netty.channel.kqueue.KQueueSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
@@ -283,11 +280,6 @@ public class TcpClientSession extends TcpSession {
                 EVENT_LOOP_GROUP = new EpollEventLoopGroup();
                 CHANNEL_CLASS = EpollSocketChannel.class;
                 DATAGRAM_CHANNEL_CLASS = EpollDatagramChannel.class;
-                break;
-            case KQUEUE:
-                EVENT_LOOP_GROUP = new KQueueEventLoopGroup();
-                CHANNEL_CLASS = KQueueSocketChannel.class;
-                DATAGRAM_CHANNEL_CLASS = KQueueDatagramChannel.class;
                 break;
             case NIO:
                 EVENT_LOOP_GROUP = new NioEventLoopGroup();
