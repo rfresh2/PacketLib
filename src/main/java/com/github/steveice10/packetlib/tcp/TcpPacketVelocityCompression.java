@@ -10,6 +10,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageCodec;
 import io.netty.handler.codec.DecoderException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -19,11 +21,12 @@ public class TcpPacketVelocityCompression extends ByteToMessageCodec<ByteBuf> {
     private final Session session;
     private final boolean validateDecompression;
     private final VelocityCompressor velocityCompressor;
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(TcpPacketVelocityCompression.class);
     public TcpPacketVelocityCompression(Session session, boolean validateDecompression) {
         this.session = session;
         this.validateDecompression = validateDecompression;
         this.velocityCompressor = Natives.compress.get().create(4);
+        LOGGER.debug("Velocity compression initialized with {} variant.", Natives.compress.getLoadedVariant());
     }
 
     @Override
