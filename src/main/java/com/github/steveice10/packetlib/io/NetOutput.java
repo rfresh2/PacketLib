@@ -180,11 +180,4 @@ public interface NetOutput {
     default void writeEnum(Enum<?> e) throws IOException {
         writeVarInt(e.ordinal());
     }
-
-    /**
-     * Flushes the output.
-     *
-     * @throws java.io.IOException If an I/O error occurs.
-     */
-    void flush() throws IOException;
 }

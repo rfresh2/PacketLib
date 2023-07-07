@@ -2,8 +2,10 @@ package com.github.steveice10.packetlib.tcp.io;
 
 import com.github.steveice10.packetlib.io.NetOutput;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -42,13 +44,37 @@ public class ByteBufNetOutput implements NetOutput {
     }
 
     @Override
-    public void writeVarInt(int i) throws IOException {
-        while((i & ~0x7F) != 0) {
-            this.writeByte((i & 0x7F) | 0x80);
-            i >>>= 7;
+    public void writeVarInt(int value) throws IOException {
+        if ((value & (0xFFFFFFFF << 7)) == 0) {
+            this.buf.writeByte(value);
+        } else if ((value & (0xFFFFFFFF << 14)) == 0) {
+            int w = (value & 0x7F | 0x80) << 8 | (value >>> 7);
+            this.buf.writeShort(w);
+        } else {
+            writeVarIntFull(this.buf, value);
         }
+    }
 
-        this.writeByte(i);
+    private static void writeVarIntFull(ByteBuf buf, int value) {
+        // See https://steinborn.me/posts/performance/how-fast-can-you-write-a-varint/
+        if ((value & (0xFFFFFFFF << 7)) == 0) {
+            buf.writeByte(value);
+        } else if ((value & (0xFFFFFFFF << 14)) == 0) {
+            int w = (value & 0x7F | 0x80) << 8 | (value >>> 7);
+            buf.writeShort(w);
+        } else if ((value & (0xFFFFFFFF << 21)) == 0) {
+            int w = (value & 0x7F | 0x80) << 16 | ((value >>> 7) & 0x7F | 0x80) << 8 | (value >>> 14);
+            buf.writeMedium(w);
+        } else if ((value & (0xFFFFFFFF << 28)) == 0) {
+            int w = (value & 0x7F | 0x80) << 24 | (((value >>> 7) & 0x7F | 0x80) << 16)
+                    | ((value >>> 14) & 0x7F | 0x80) << 8 | (value >>> 21);
+            buf.writeInt(w);
+        } else {
+            int w = (value & 0x7F | 0x80) << 24 | ((value >>> 7) & 0x7F | 0x80) << 16
+                    | ((value >>> 14) & 0x7F | 0x80) << 8 | ((value >>> 21) & 0x7F | 0x80);
+            buf.writeInt(w);
+            buf.writeByte(value >>> 28);
+        }
     }
 
     @Override
@@ -127,13 +153,12 @@ public class ByteBufNetOutput implements NetOutput {
         if(s == null) {
             throw new IllegalArgumentException("String cannot be null!");
         }
-
-        byte[] bytes = s.getBytes("UTF-8");
-        if(bytes.length > 32767) {
+        int utf8Bytes = ByteBufUtil.utf8Bytes(s);
+        if (utf8Bytes > 32767) {
             throw new IOException("String too big (was " + s.length() + " bytes encoded, max " + 32767 + ")");
         } else {
-            this.writeVarInt(bytes.length);
-            this.writeBytes(bytes);
+            this.writeVarInt(utf8Bytes);
+            this.buf.writeCharSequence(s, StandardCharsets.UTF_8);
         }
     }
 
@@ -143,7 +168,7 @@ public class ByteBufNetOutput implements NetOutput {
         this.writeLong(uuid.getLeastSignificantBits());
     }
 
-    @Override
-    public void flush() throws IOException {
+    public ByteBuf getBuffer() {
+        return this.buf;
     }
 }
