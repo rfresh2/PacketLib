@@ -15,6 +15,8 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
@@ -23,6 +25,7 @@ public class TcpServer extends AbstractServer {
     private EventLoopGroup group;
     private Class<? extends ServerSocketChannel> serverSocketChannel;
     private Channel channel;
+    private static final Logger LOGGER = LoggerFactory.getLogger(TcpServer.class);
 
     public TcpServer(String host, int port, Supplier<? extends PacketProtocol> protocol) {
         super(host, port, protocol);
@@ -102,10 +105,7 @@ public class TcpServer extends AbstractServer {
                         callback.run();
                     }
                 } else {
-                    System.err.println("[ERROR] Failed to asynchronously bind connection listener.");
-                    if(future1.cause() != null) {
-                        future1.cause().printStackTrace();
-                    }
+                    LOGGER.error("Failed to asynchronously bind connection listener.", future1.cause());
                 }
             });
         }
@@ -132,10 +132,7 @@ public class TcpServer extends AbstractServer {
                                 callback.run();
                             }
                         } else {
-                            System.err.println("[ERROR] Failed to asynchronously close connection listener.");
-                            if(future1.cause() != null) {
-                                future1.cause().printStackTrace();
-                            }
+                            LOGGER.error("Failed to asynchronously close connection listener.", future1.cause());
                         }
                     });
                 }
@@ -156,10 +153,7 @@ public class TcpServer extends AbstractServer {
                     @Override
                     public void operationComplete(Future future) {
                         if(!future.isSuccess() && getGlobalFlag(BuiltinFlags.PRINT_DEBUG, false)) {
-                            System.err.println("[ERROR] Failed to asynchronously close connection listener.");
-                            if(future.cause() != null) {
-                                future.cause().printStackTrace();
-                            }
+                            LOGGER.error("Failed to asynchronously close connection listener.", future.cause());
                         }
                     }
                 });

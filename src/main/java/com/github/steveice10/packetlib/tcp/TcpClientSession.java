@@ -88,8 +88,7 @@ public class TcpClientSession extends TcpSession {
                         channel.config().setOption(ChannelOption.TCP_NODELAY, true);
                     } catch (ChannelException e) {
                         if(debug) {
-                            LOGGER.debug("Exception while trying to set TCP_NODELAY");
-                            e.printStackTrace();
+                            LOGGER.debug("Exception while trying to set TCP_NODELAY", e);
                         }
                     }
 
@@ -194,7 +193,7 @@ public class TcpClientSession extends TcpSession {
         try {
             InetAddress resolved = InetAddress.getByName(getHost());
             if (debug) {
-                System.out.printf("Resolved %s -> %s%n", getHost(), resolved.getHostAddress());
+                LOGGER.debug("Resolved {} -> {}", getHost(), resolved.getHostAddress());
             }
             return new InetSocketAddress(resolved, getPort());
         } catch (UnknownHostException e) {
