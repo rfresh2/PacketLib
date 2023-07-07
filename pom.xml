@@ -3,20 +3,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.steveice10</groupId>
-    <artifactId>packetlib</artifactId>
-    <version>3.1-5c</version>
+    <groupId>com.github.rfresh2</groupId>
+    <artifactId>PacketLib</artifactId>
+    <version>1.0</version>
     <packaging>jar</packaging>
 
     <name>PacketLib</name>
     <description>A library for networking between a client and a server with packets.</description>
-    <url>http://github.com/Steveice10/PacketLib/</url>
-
-    <scm>
-        <connection>scm:git:git@github.com:Steveice10/PacketLib.git</connection>
-        <developerConnection>scm:git:git@github.com:Steveice10/PacketLib.git</developerConnection>
-        <url>git@github.com:Steveice10/PacketLib/</url>
-    </scm>
+    <url>http://github.com/rfresh2/PacketLib/</url>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -32,19 +26,6 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-
-    <developers>
-        <developer>
-            <id>steveice10</id>
-            <name>Steveice10</name>
-            <email>Steveice10@gmail.com</email>
-        </developer>
-    </developers>
-
-    <issueManagement>
-        <system>GitHub</system>
-        <url>https://github.com/Steveice10/PacketLib/issues</url>
-    </issueManagement>
 
     <repositories>
         <repository>
