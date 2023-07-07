@@ -1,11 +1,11 @@
 package com.github.steveice10.packetlib;
 
-import com.github.steveice10.packetlib.crypt.PacketEncryption;
 import com.github.steveice10.packetlib.event.session.SessionEvent;
 import com.github.steveice10.packetlib.event.session.SessionListener;
 import com.github.steveice10.packetlib.packet.Packet;
 import com.github.steveice10.packetlib.packet.PacketProtocol;
 
+import javax.crypto.SecretKey;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -172,9 +172,9 @@ public interface Session {
     /**
      * Enables encryption for this session.
      *
-     * @param encryption the encryption to encrypt with
+     * @param key the secret key to encrypt with
      */
-    void enableEncryption(PacketEncryption encryption);
+    void enableEncryption(SecretKey key);
 
     /**
      * Gets the connect timeout for this session in seconds.

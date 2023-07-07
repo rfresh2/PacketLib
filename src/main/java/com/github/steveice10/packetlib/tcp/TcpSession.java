@@ -1,13 +1,7 @@
 package com.github.steveice10.packetlib.tcp;
 
 import com.github.steveice10.packetlib.Session;
-import com.github.steveice10.packetlib.crypt.PacketEncryption;
-import com.github.steveice10.packetlib.event.session.ConnectedEvent;
-import com.github.steveice10.packetlib.event.session.DisconnectedEvent;
-import com.github.steveice10.packetlib.event.session.DisconnectingEvent;
-import com.github.steveice10.packetlib.event.session.PacketSendingEvent;
-import com.github.steveice10.packetlib.event.session.SessionEvent;
-import com.github.steveice10.packetlib.event.session.SessionListener;
+import com.github.steveice10.packetlib.event.session.*;
 import com.github.steveice10.packetlib.packet.Packet;
 import com.github.steveice10.packetlib.packet.PacketProtocol;
 import io.netty.channel.*;
@@ -17,6 +11,7 @@ import io.netty.handler.timeout.WriteTimeoutException;
 import io.netty.handler.timeout.WriteTimeoutHandler;
 
 import javax.annotation.Nullable;
+import javax.crypto.SecretKey;
 import java.net.ConnectException;
 import java.net.SocketAddress;
 import java.util.Collections;
@@ -182,7 +177,7 @@ public abstract class TcpSession extends SimpleChannelInboundHandler<Packet> imp
         if (this.channel != null) {
             if (this.compressionThreshold >= 0) {
                 if (this.channel.pipeline().get("compression") == null) {
-                    this.channel.pipeline().addBefore("codec", "compression", new TcpPacketCompression(this, validateDecompression));
+                    this.channel.pipeline().addBefore("codec", "compression", new TcpPacketVelocityCompression(this, validateDecompression));
                 }
             } else if (this.channel.pipeline().get("compression") != null) {
                 this.channel.pipeline().remove("compression");
@@ -191,11 +186,11 @@ public abstract class TcpSession extends SimpleChannelInboundHandler<Packet> imp
     }
 
     @Override
-    public void enableEncryption(PacketEncryption encryption) {
+    public void enableEncryption(SecretKey key) {
         if (channel == null) {
             throw new IllegalStateException("Connect the client before initializing encryption!");
         }
-        channel.pipeline().addBefore("sizer", "encryption", new TcpPacketEncryptor(encryption));
+        channel.pipeline().addBefore("sizer", "encryption", new TcpPacketVelocityEncryptor(key));
     }
 
     @Override

@@ -67,6 +67,10 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+        <repository>
+            <id>paper</id>
+            <url>https://papermc.io/repo/repository/maven-public/</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -151,6 +155,11 @@
             <artifactId>netty-incubator-transport-native-io_uring</artifactId>
             <version>0.0.21.Final</version>
             <classifier>linux-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>com.velocitypowered</groupId>
+            <artifactId>velocity-native</artifactId>
+            <version>3.2.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.github.spotbugs</groupId>
