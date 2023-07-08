@@ -89,14 +89,91 @@ public class ByteBufNetOutput implements NetOutput {
         this.buf.writeLong(l);
     }
 
+    // Based off of Andrew Steinborn's blog post:
+    // https://steinborn.me/posts/performance/how-fast-can-you-write-a-varint/
     @Override
-    public void writeVarLong(long l) throws IOException {
-        while((l & ~0x7F) != 0) {
-            this.writeByte((int) (l & 0x7F) | 0x80);
-            l >>>= 7;
+    public void writeVarLong(long value) {
+        // Peel the one and two byte count cases explicitly as they are the most common VarInt sizes
+        // that the server will write, to improve inlining.
+        if ((value & ~0x7FL) == 0) {
+            buf.writeByte((byte) value);
+        } else if ((value & ~0x3FFFL) == 0) {
+            int w = (int) ((value & 0x7FL | 0x80L) << 8 |
+                    (value >>> 7));
+            buf.writeShort(w);
+        } else {
+            writeVarLongFull(buf, value);
         }
+    }
 
-        this.writeByte((int) l);
+    private static void writeVarLongFull(ByteBuf buf, long value) {
+        if ((value & ~0x7FL) == 0) {
+            buf.writeByte((byte) value);
+        } else if ((value & ~0x3FFFL) == 0) {
+            int w = (int) ((value & 0x7FL | 0x80L) << 8 |
+                    (value >>> 7));
+            buf.writeShort(w);
+        } else if ((value & ~0x1FFFFFL) == 0) {
+            int w = (int) ((value & 0x7FL | 0x80L) << 16 |
+                    ((value >>> 7) & 0x7FL | 0x80L) << 8 |
+                    (value >>> 14));
+            buf.writeMedium(w);
+        } else if ((value & ~0xFFFFFFFL) == 0) {
+            int w = (int) ((value & 0x7F | 0x80) << 24 |
+                    (((value >>> 7) & 0x7F | 0x80) << 16) |
+                    ((value >>> 14) & 0x7F | 0x80) << 8 |
+                    (value >>> 21));
+            buf.writeInt(w);
+        } else if ((value & ~0x7FFFFFFFFL) == 0) {
+            int w = (int) ((value & 0x7F | 0x80) << 24 |
+                    ((value >>> 7) & 0x7F | 0x80) << 16 |
+                    ((value >>> 14) & 0x7F | 0x80) << 8 |
+                    ((value >>> 21) & 0x7F | 0x80));
+            buf.writeInt(w);
+            buf.writeByte((int) (value >>> 28));
+        } else if ((value & ~0x3FFFFFFFFFFL) == 0) {
+            int w = (int) ((value & 0x7F | 0x80) << 24 |
+                    ((value >>> 7) & 0x7F | 0x80) << 16 |
+                    ((value >>> 14) & 0x7F | 0x80) << 8 |
+                    ((value >>> 21) & 0x7F | 0x80));
+            int w2 = (int) (((value >>> 28) & 0x7FL | 0x80L) << 8 |
+                    (value >>> 35));
+            buf.writeInt(w);
+            buf.writeShort(w2);
+        } else if ((value & ~0x1FFFFFFFFFFFFL) == 0) {
+            int w = (int) ((value & 0x7F | 0x80) << 24 |
+                    ((value >>> 7) & 0x7F | 0x80) << 16 |
+                    ((value >>> 14) & 0x7F | 0x80) << 8 |
+                    ((value >>> 21) & 0x7F | 0x80));
+            int w2 = (int) ((((value >>> 28) & 0x7FL | 0x80L) << 16 |
+                    ((value >>> 35) & 0x7FL | 0x80L) << 8) |
+                    (value >>> 42));
+            buf.writeInt(w);
+            buf.writeMedium(w2);
+        } else {
+            long wval = (value & 0x7F | 0x80) << 56 |
+                    ((value >>> 7) & 0x7F | 0x80) << 48 |
+                    ((value >>> 14) & 0x7F | 0x80) << 40 |
+                    ((value >>> 21) & 0x7F | 0x80) << 32 |
+                    ((value >>> 28) & 0x7FL | 0x80L) << 24 |
+                    ((value >>> 35) & 0x7FL | 0x80L) << 16 |
+                    ((value >>> 42) & 0x7FL | 0x80L) << 8 |
+                    (value >>> 49);
+            if ((value & ~0xFFFFFFFFFFFFFFL) == 0) {
+                long w = wval;
+                buf.writeLong(w);
+            } else if ((value & ~0x7FFFFFFFFFFFFFFFL) == 0) {
+                long w = wval;
+                buf.writeLong(w);
+                buf.writeByte((byte) (value >>> 56));
+            } else {
+                long w = wval;
+                int w2 = (int) (((value >>> 56) & 0x7FL | 0x80L) << 8 |
+                        (value >>> 63));
+                buf.writeLong(w);
+                buf.writeShort(w2);
+            }
+        }
     }
 
     @Override

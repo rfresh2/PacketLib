@@ -253,7 +253,7 @@ public class ByteBufNetInput implements NetInput {
     public String readString() throws IOException {
         int length = this.readVarInt();
         ByteBuf byteBuf = this.readBytesToBuf(length);
-        String s = byteBuf.readCharSequence(length, StandardCharsets.UTF_8).toString();
+        String s = (String) byteBuf.readCharSequence(length, StandardCharsets.UTF_8);
         byteBuf.release();
         return s;
     }
