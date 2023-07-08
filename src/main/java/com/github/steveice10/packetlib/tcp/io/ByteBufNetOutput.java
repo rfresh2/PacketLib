@@ -3,6 +3,7 @@ package com.github.steveice10.packetlib.tcp.io;
 import com.github.steveice10.packetlib.io.NetOutput;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,6 +17,12 @@ public class ByteBufNetOutput implements NetOutput {
 
     public ByteBufNetOutput(ByteBuf buf) {
         this.buf = buf;
+    }
+
+    public static ByteBufNetOutput createWrappedOutput(byte[] data) {
+        ByteBufNetOutput output = new ByteBufNetOutput(Unpooled.wrappedBuffer(data));
+        output.getBuffer().resetWriterIndex(); // writer index defaults to the length of the buffer.
+        return output;
     }
 
     @Override
