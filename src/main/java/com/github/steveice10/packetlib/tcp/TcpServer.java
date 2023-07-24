@@ -14,7 +14,6 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,18 +42,18 @@ public class TcpServer extends AbstractServer {
         }
 
         switch (TransportHelper.determineTransportMethod()) {
-            case IO_URING:
+            case IO_URING -> {
                 this.group = new IOUringEventLoopGroup();
                 this.serverSocketChannel = IOUringServerSocketChannel.class;
-                break;
-            case EPOLL:
+            }
+            case EPOLL -> {
                 this.group = new EpollEventLoopGroup();
                 this.serverSocketChannel = EpollServerSocketChannel.class;
-                break;
-            case NIO:
+            }
+            case NIO -> {
                 this.group = new NioEventLoopGroup();
                 this.serverSocketChannel = NioServerSocketChannel.class;
-                break;
+            }
         }
 
         ChannelFuture future = new ServerBootstrap().channel(this.serverSocketChannel).childHandler(new ChannelInitializer<Channel>() {
@@ -149,12 +148,9 @@ public class TcpServer extends AbstractServer {
                 } catch(InterruptedException e) {
                 }
             } else {
-                future.addListener(new GenericFutureListener() {
-                    @Override
-                    public void operationComplete(Future future) {
-                        if(!future.isSuccess() && getGlobalFlag(BuiltinFlags.PRINT_DEBUG, false)) {
-                            LOGGER.error("Failed to asynchronously close connection listener.", future.cause());
-                        }
+                future.addListener((f) -> {
+                    if(!f.isSuccess() && getGlobalFlag(BuiltinFlags.PRINT_DEBUG, false)) {
+                        LOGGER.error("Failed to asynchronously close connection listener.", f.cause());
                     }
                 });
             }
