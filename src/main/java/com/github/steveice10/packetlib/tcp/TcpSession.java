@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 public abstract class TcpSession extends SimpleChannelInboundHandler<Packet> implements Session {
     /**
@@ -278,9 +279,12 @@ public abstract class TcpSession extends SimpleChannelInboundHandler<Packet> imp
 
         if (this.channel != null && this.channel.isOpen()) {
             this.callEvent(new DisconnectingEvent(this, reason, cause));
-            this.channel.flush().close().addListener((ChannelFutureListener) future ->
-                    callEvent(new DisconnectedEvent(TcpSession.this,
-                            reason != null ? reason : "Connection closed.", cause)));
+            try {
+                this.channel.flush().close().await(5, TimeUnit.SECONDS);
+            } catch (final Exception e) {
+                this.exceptionCaught(null, e);
+            }
+            callEvent(new DisconnectedEvent(this, reason != null ? reason : "Connection closed.", cause));
         } else {
             this.callEvent(new DisconnectedEvent(this, reason != null ? reason : "Connection closed.", cause));
         }
