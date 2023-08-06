@@ -10,9 +10,6 @@ import io.netty.channel.*;
 import io.netty.channel.epoll.EpollDatagramChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
-import io.netty.channel.kqueue.KQueueDatagramChannel;
-import io.netty.channel.kqueue.KQueueEventLoopGroup;
-import io.netty.channel.kqueue.KQueueSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.DatagramChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
@@ -27,17 +24,16 @@ import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringSocketChannel;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
-
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.net.*;
 
 public class TcpClientSession extends TcpSession {
     private static final String IP_REGEX = "\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b";
     private static Class<? extends Channel> CHANNEL_CLASS;
     private static Class<? extends DatagramChannel> DATAGRAM_CHANNEL_CLASS;
     private static EventLoopGroup EVENT_LOOP_GROUP;
+    private static Logger LOGGER = LoggerFactory.getLogger("PacketLib");
 
     private final String bindAddress;
     private final int bindPort;
@@ -75,8 +71,7 @@ public class TcpClientSession extends TcpSession {
                     channel.config().setOption(ChannelOption.TCP_NODELAY, true);
                 } catch (ChannelException e) {
                     if(debug) {
-                        System.out.println("Exception while trying to set TCP_NODELAY");
-                        e.printStackTrace();
+                        LOGGER.debug("Exception while trying to set TCP_NODELAY", e);
                     }
                 }
 
@@ -149,7 +144,7 @@ public class TcpClientSession extends TcpSession {
 
         String name = this.getPacketProtocol().getSRVRecordPrefix() + "._tcp." + this.getHost();
         if (debug) {
-            System.out.println("[PacketLib] Attempting SRV lookup for \"" + name + "\".");
+            LOGGER.debug("Attempting SRV lookup for \"" + name + "\".");
         }
 
         if(getFlag(BuiltinFlags.ATTEMPT_SRV_RESOLVE, true) && (!this.host.matches(IP_REGEX) && !this.host.equalsIgnoreCase("localhost"))) {
@@ -175,21 +170,20 @@ public class TcpClientSession extends TcpSession {
                         }
 
                         if(debug) {
-                            System.out.println("[PacketLib] Found SRV record containing \"" + host + ":" + port + "\".");
+                            LOGGER.debug("Found SRV record containing \"" + host + ":" + port + "\".");
                         }
 
                         this.host = host;
                         this.port = port;
                     } else if (debug) {
-                        System.out.println("[PacketLib] Received non-SRV record in response.");
+                        LOGGER.debug("Received non-SRV record in response.");
                     }
                 } else if (debug) {
-                    System.out.println("[PacketLib] No SRV record found.");
+                    LOGGER.debug("No SRV record found.");
                 }
             } catch(Exception e) {
                 if (debug) {
-                    System.out.println("[PacketLib] Failed to resolve SRV record.");
-                    e.printStackTrace();
+                    LOGGER.debug("Failed to resolve SRV record.", e);
                 }
             } finally {
                 if (envelope != null) {
@@ -201,20 +195,19 @@ public class TcpClientSession extends TcpSession {
                 }
             }
         } else if(debug) {
-            System.out.println("[PacketLib] Not resolving SRV record for " + this.host);
+            LOGGER.debug("Not resolving SRV record for " + this.host);
         }
 
         // Resolve host here
         try {
             InetAddress resolved = InetAddress.getByName(getHost());
             if (debug) {
-                System.out.printf("[PacketLib] Resolved %s -> %s%n", getHost(), resolved.getHostAddress());
+                LOGGER.debug("Resolved {} -> {}", getHost(), resolved.getHostAddress());
             }
             return new InetSocketAddress(resolved, getPort());
         } catch (UnknownHostException e) {
             if (debug) {
-                System.out.println("[PacketLib] Failed to resolve host, letting Netty do it instead.");
-                e.printStackTrace();
+                LOGGER.debug("Failed to resolve host, letting Netty do it instead.", e);
             }
             return InetSocketAddress.createUnresolved(getHost(), getPort());
         }
@@ -295,11 +288,6 @@ public class TcpClientSession extends TcpSession {
                 EVENT_LOOP_GROUP = new EpollEventLoopGroup();
                 CHANNEL_CLASS = EpollSocketChannel.class;
                 DATAGRAM_CHANNEL_CLASS = EpollDatagramChannel.class;
-                break;
-            case KQUEUE:
-                EVENT_LOOP_GROUP = new KQueueEventLoopGroup();
-                CHANNEL_CLASS = KQueueSocketChannel.class;
-                DATAGRAM_CHANNEL_CLASS = KQueueDatagramChannel.class;
                 break;
             case NIO:
                 EVENT_LOOP_GROUP = new NioEventLoopGroup();

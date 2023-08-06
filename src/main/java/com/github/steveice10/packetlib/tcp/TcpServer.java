@@ -5,25 +5,17 @@ import com.github.steveice10.packetlib.BuiltinFlags;
 import com.github.steveice10.packetlib.helper.TransportHelper;
 import com.github.steveice10.packetlib.packet.PacketProtocol;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
-import io.netty.channel.*;
-import io.netty.channel.kqueue.KQueueEventLoopGroup;
-import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.function.Supplier;
@@ -32,6 +24,7 @@ public class TcpServer extends AbstractServer {
     private EventLoopGroup group;
     private Class<? extends ServerSocketChannel> serverSocketChannel;
     private Channel channel;
+    private static final Logger LOGGER = LoggerFactory.getLogger(TcpServer.class);
 
     public TcpServer(String host, int port, Supplier<? extends PacketProtocol> protocol) {
         super(host, port, protocol);
@@ -49,22 +42,18 @@ public class TcpServer extends AbstractServer {
         }
 
         switch (TransportHelper.determineTransportMethod()) {
-            case IO_URING:
+            case IO_URING -> {
                 this.group = new IOUringEventLoopGroup();
                 this.serverSocketChannel = IOUringServerSocketChannel.class;
-                break;
-            case EPOLL:
+            }
+            case EPOLL -> {
                 this.group = new EpollEventLoopGroup();
                 this.serverSocketChannel = EpollServerSocketChannel.class;
-                break;
-            case KQUEUE:
-                this.group = new KQueueEventLoopGroup();
-                this.serverSocketChannel = KQueueServerSocketChannel.class;
-                break;
-            case NIO:
+            }
+            case NIO -> {
                 this.group = new NioEventLoopGroup();
                 this.serverSocketChannel = NioServerSocketChannel.class;
-                break;
+            }
         }
 
         ChannelFuture future = new ServerBootstrap().channel(this.serverSocketChannel).childHandler(new ChannelInitializer<Channel>() {
@@ -115,10 +104,7 @@ public class TcpServer extends AbstractServer {
                         callback.run();
                     }
                 } else {
-                    System.err.println("[ERROR] Failed to asynchronously bind connection listener.");
-                    if(future1.cause() != null) {
-                        future1.cause().printStackTrace();
-                    }
+                    LOGGER.error("Failed to asynchronously bind connection listener.", future1.cause());
                 }
             });
         }
@@ -145,10 +131,7 @@ public class TcpServer extends AbstractServer {
                                 callback.run();
                             }
                         } else {
-                            System.err.println("[ERROR] Failed to asynchronously close connection listener.");
-                            if(future1.cause() != null) {
-                                future1.cause().printStackTrace();
-                            }
+                            LOGGER.error("Failed to asynchronously close connection listener.", future1.cause());
                         }
                     });
                 }
@@ -165,15 +148,9 @@ public class TcpServer extends AbstractServer {
                 } catch(InterruptedException e) {
                 }
             } else {
-                future.addListener(new GenericFutureListener() {
-                    @Override
-                    public void operationComplete(Future future) {
-                        if(!future.isSuccess() && getGlobalFlag(BuiltinFlags.PRINT_DEBUG, false)) {
-                            System.err.println("[ERROR] Failed to asynchronously close connection listener.");
-                            if(future.cause() != null) {
-                                future.cause().printStackTrace();
-                            }
-                        }
+                future.addListener((f) -> {
+                    if(!f.isSuccess() && getGlobalFlag(BuiltinFlags.PRINT_DEBUG, false)) {
+                        LOGGER.error("Failed to asynchronously close connection listener.", f.cause());
                     }
                 });
             }

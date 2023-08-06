@@ -4,6 +4,7 @@ import com.github.steveice10.packetlib.io.NetInput;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -57,13 +58,14 @@ public class ByteBufNetInput implements NetInput {
         int size = 0;
         int b;
         while(((b = this.readByte()) & 0x80) == 0x80) {
-            value |= (b & 0x7F) << (size++ * 7);
-            if(size > 5) {
-                throw new IOException("VarInt too long (length must be <= 5)");
+            value |= (b & 0x7F) << size;
+            size += 7;
+            if (size > 35) {
+                throw new IllegalArgumentException("VarInt wider than 35-bit");
             }
         }
 
-        return value | ((b & 0x7F) << (size * 7));
+        return value | ((b & 0x7F) << size);
     }
 
     @Override
@@ -73,17 +75,18 @@ public class ByteBufNetInput implements NetInput {
 
     @Override
     public long readVarLong() throws IOException {
-        int value = 0;
+        long value = 0;
         int size = 0;
         int b;
         while(((b = this.readByte()) & 0x80) == 0x80) {
-            value |= (b & 0x7F) << (size++ * 7);
-            if(size > 10) {
-                throw new IOException("VarLong too long (length must be <= 10)");
+            value |= (b & 0x7FL) << size;
+            size += 7;
+            if (size > 70) {
+                throw new IllegalArgumentException("VarLong wider than 70-bit");
             }
         }
 
-        return value | ((b & 0x7F) << (size * 7));
+        return value | ((b & 0x7FL) << size);
     }
 
     @Override
@@ -98,6 +101,7 @@ public class ByteBufNetInput implements NetInput {
 
     @Override
     public byte[] readBytes(int length) throws IOException {
+        // todo: deprecate this method usages where possible and prefer returning a ByteBuf
         if(length < 0) {
             throw new IllegalArgumentException("Array cannot have length less than 0.");
         }
@@ -105,6 +109,13 @@ public class ByteBufNetInput implements NetInput {
         byte b[] = new byte[length];
         this.buf.readBytes(b);
         return b;
+    }
+
+    public ByteBuf readBytesToBuf(int length) {
+        if(length < 0) {
+            throw new IllegalArgumentException("Array cannot have length less than 0.");
+        }
+        return this.buf.readBytes(length);
     }
 
     @Override
@@ -241,8 +252,10 @@ public class ByteBufNetInput implements NetInput {
     @Override
     public String readString() throws IOException {
         int length = this.readVarInt();
-        byte bytes[] = this.readBytes(length);
-        return new String(bytes, "UTF-8");
+        ByteBuf byteBuf = this.readBytesToBuf(length);
+        String s = (String) byteBuf.readCharSequence(length, StandardCharsets.UTF_8);
+        byteBuf.release();
+        return s;
     }
 
     @Override
@@ -253,5 +266,9 @@ public class ByteBufNetInput implements NetInput {
     @Override
     public int available() throws IOException {
         return this.buf.readableBytes();
+    }
+
+    public ByteBuf getBuffer() {
+        return this.buf;
     }
 }

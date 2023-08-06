@@ -3,36 +3,36 @@ package com.github.steveice10.packetlib.tcp;
 import com.github.steveice10.packetlib.Session;
 import com.github.steveice10.packetlib.tcp.io.ByteBufNetInput;
 import com.github.steveice10.packetlib.tcp.io.ByteBufNetOutput;
+import com.velocitypowered.natives.compression.VelocityCompressor;
+import com.velocitypowered.natives.util.MoreByteBufUtils;
+import com.velocitypowered.natives.util.Natives;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageCodec;
 import io.netty.handler.codec.DecoderException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
-public class TcpPacketCompression extends ByteToMessageCodec<ByteBuf> {
+public class TcpPacketVelocityCompression extends ByteToMessageCodec<ByteBuf> {
     private static final int MAX_COMPRESSED_SIZE = 2097152;
 
     private final Session session;
-    private final Deflater deflater = new Deflater();
-    private final Inflater inflater = new Inflater();
-    private final byte[] buf = new byte[8192];
     private final boolean validateDecompression;
-
-    public TcpPacketCompression(Session session, boolean validateDecompression) {
+    private final VelocityCompressor velocityCompressor;
+    private static final Logger LOGGER = LoggerFactory.getLogger(TcpPacketVelocityCompression.class);
+    public TcpPacketVelocityCompression(Session session, boolean validateDecompression) {
         this.session = session;
         this.validateDecompression = validateDecompression;
+        this.velocityCompressor = Natives.compress.get().create(4);
+        LOGGER.debug("Velocity compression initialized with {} variant.", Natives.compress.getLoadedVariant());
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
         super.handlerRemoved(ctx);
-
-        this.deflater.end();
-        this.inflater.end();
+        this.velocityCompressor.close();
     }
 
     @Override
@@ -43,17 +43,13 @@ public class TcpPacketCompression extends ByteToMessageCodec<ByteBuf> {
             output.writeVarInt(0);
             out.writeBytes(in);
         } else {
-            byte[] bytes = new byte[readable];
-            in.readBytes(bytes);
-            output.writeVarInt(bytes.length);
-            this.deflater.setInput(bytes, 0, readable);
-            this.deflater.finish();
-            while(!this.deflater.finished()) {
-                int length = this.deflater.deflate(this.buf);
-                output.writeBytes(this.buf, length);
+            output.writeVarInt(readable);
+            final ByteBuf byteBufCompat = MoreByteBufUtils.ensureCompatible(ctx.alloc(), this.velocityCompressor, in);
+            try {
+                this.velocityCompressor.deflate(byteBufCompat, out);
+            } finally {
+                byteBufCompat.release();
             }
-
-            this.deflater.reset();
         }
     }
 
@@ -75,13 +71,18 @@ public class TcpPacketCompression extends ByteToMessageCodec<ByteBuf> {
                     }
                 }
 
-                byte[] bytes = new byte[buf.readableBytes()];
-                in.readBytes(bytes);
-                this.inflater.setInput(bytes);
-                byte[] inflated = new byte[size];
-                this.inflater.inflate(inflated);
-                out.add(Unpooled.wrappedBuffer(inflated));
-                this.inflater.reset();
+                final ByteBuf compatibleIn = MoreByteBufUtils.ensureCompatible(ctx.alloc(), this.velocityCompressor, buf);
+                final ByteBuf uncompressed = MoreByteBufUtils.preferredBuffer(ctx.alloc(), velocityCompressor, size);
+                try {
+                    this.velocityCompressor.inflate(compatibleIn, uncompressed, size);
+                    out.add(uncompressed);
+                    buf.clear();
+                } catch (final Exception e) {
+                    uncompressed.release();
+                    throw e;
+                } finally {
+                    compatibleIn.release();
+                }
             }
         }
     }
