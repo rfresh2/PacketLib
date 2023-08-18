@@ -26,11 +26,7 @@ import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
+import java.net.*;
 
 public class TcpClientSession extends TcpSession {
     private static final String IP_REGEX = "\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b";
@@ -62,55 +58,62 @@ public class TcpClientSession extends TcpSession {
         this.proxy = proxy;
     }
 
-    @Override
-    public void connect(boolean wait) {
-        if(this.disconnected) {
-            throw new IllegalStateException("Session has already been disconnected.");
-        }
-
+    public ChannelInitializer<Channel> buildChannelInitializer() {
         boolean debug = getFlag(BuiltinFlags.PRINT_DEBUG, false);
+        return new ChannelInitializer<Channel>() {
+            @Override
+            public void initChannel(Channel channel) {
+                PacketProtocol protocol = getPacketProtocol();
+                protocol.newClientSession(TcpClientSession.this);
+
+                channel.config().setOption(ChannelOption.IP_TOS, 0x18);
+                try {
+                    channel.config().setOption(ChannelOption.TCP_NODELAY, true);
+                } catch (ChannelException e) {
+                    if(debug) {
+                        LOGGER.debug("Exception while trying to set TCP_NODELAY", e);
+                    }
+                }
+
+                ChannelPipeline pipeline = channel.pipeline();
+
+                refreshReadTimeoutHandler(channel);
+                refreshWriteTimeoutHandler(channel);
+
+                addProxy(pipeline);
+
+                int size = protocol.getPacketHeader().getLengthSize();
+                if (size > 0) {
+                    pipeline.addLast("sizer", new TcpPacketSizer(TcpClientSession.this, size));
+                }
+
+                pipeline.addLast("codec", new TcpPacketCodec(TcpClientSession.this, true));
+                pipeline.addLast("manager", TcpClientSession.this);
+
+                addHAProxySupport(pipeline);
+            }
+        };
+    }
+
+    public Bootstrap buildBootstrap(ChannelInitializer<Channel> initializer) {
 
         if (CHANNEL_CLASS == null) {
             createTcpEventLoopGroup();
         }
 
+        final Bootstrap bootstrap = new Bootstrap();
+        bootstrap.channel(CHANNEL_CLASS);
+        bootstrap.handler(initializer).group(EVENT_LOOP_GROUP).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getConnectTimeout() * 1000);
+        return bootstrap;
+    }
+
+    // connect with a bootstrap provided by the caller
+    public void connect(boolean wait, Bootstrap bootstrap) {
+        if(this.disconnected) {
+            throw new IllegalStateException("Session has already been disconnected.");
+        }
+
         try {
-            final Bootstrap bootstrap = new Bootstrap();
-            bootstrap.channel(CHANNEL_CLASS);
-            bootstrap.handler(new ChannelInitializer<Channel>() {
-                @Override
-                public void initChannel(Channel channel) {
-                    PacketProtocol protocol = getPacketProtocol();
-                    protocol.newClientSession(TcpClientSession.this);
-
-                    channel.config().setOption(ChannelOption.IP_TOS, 0x18);
-                    try {
-                        channel.config().setOption(ChannelOption.TCP_NODELAY, true);
-                    } catch (ChannelException e) {
-                        if(debug) {
-                            LOGGER.debug("Exception while trying to set TCP_NODELAY", e);
-                        }
-                    }
-
-                    ChannelPipeline pipeline = channel.pipeline();
-
-                    refreshReadTimeoutHandler(channel);
-                    refreshWriteTimeoutHandler(channel);
-
-                    addProxy(pipeline);
-
-                    int size = protocol.getPacketHeader().getLengthSize();
-                    if (size > 0) {
-                        pipeline.addLast("sizer", new TcpPacketSizer(TcpClientSession.this, size));
-                    }
-
-                    pipeline.addLast("codec", new TcpPacketCodec(TcpClientSession.this, true));
-                    pipeline.addLast("manager", TcpClientSession.this);
-
-                    addHAProxySupport(pipeline);
-                }
-            }).group(EVENT_LOOP_GROUP).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getConnectTimeout() * 1000);
-
             InetSocketAddress remoteAddress = resolveAddress();
             bootstrap.remoteAddress(remoteAddress);
             bootstrap.localAddress(bindAddress, bindPort);
@@ -125,9 +128,15 @@ public class TcpClientSession extends TcpSession {
                     exceptionCaught(null, futureListener.cause());
                 }
             });
-        } catch(Throwable t) {
-            exceptionCaught(null, t);
+        } catch (final Throwable e) {
+            exceptionCaught(null, e);
         }
+    }
+
+
+    @Override
+    public void connect(boolean wait) {
+        connect(wait, buildBootstrap(buildChannelInitializer()));
     }
 
     private InetSocketAddress resolveAddress() {
@@ -204,7 +213,7 @@ public class TcpClientSession extends TcpSession {
         }
     }
 
-    private void addProxy(ChannelPipeline pipeline) {
+    void addProxy(ChannelPipeline pipeline) {
         if(proxy != null) {
             switch(proxy.getType()) {
                 case HTTP:
@@ -237,7 +246,7 @@ public class TcpClientSession extends TcpSession {
         }
     }
 
-    private void addHAProxySupport(ChannelPipeline pipeline) {
+    void addHAProxySupport(ChannelPipeline pipeline) {
         InetSocketAddress clientAddress = getFlag(BuiltinFlags.CLIENT_PROXIED_ADDRESS);
         if (getFlag(BuiltinFlags.ENABLE_CLIENT_PROXY_PROTOCOL, false) && clientAddress != null) {
             pipeline.addFirst("proxy-protocol-packet-sender", new ChannelInboundHandlerAdapter() {
